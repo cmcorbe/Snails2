@@ -1,21 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <graph.h>
-#include <conio.h>
 #include <time.h>
-#include <dos.h>
 #include <string.h>
 #include <math.h>
 #include <malloc.h>
-#include "LGame2.h"
+#include <SDL/SDL.h>
+#include "LGAME2.H"
 
 
 //CONSTANTES
 #define pi 3.14159264
 #define vsync TRUE//TRUE
-#define ancho_pantalla 320
-#define alto_pantalla 200
-#define alto_tablero 0//20
+#define ancho_pantalla 640//320
+#define alto_pantalla 480//200
+#define alto_tablero 20//20
 #define separador_pantallas 2//Pares
 #define color_transparente 0
 #define max_jugadores 2
@@ -35,8 +33,8 @@
 #define colores_techo 164
 
 //Terreno
-#define ancho_terreno 504//504//159
-#define alto_terreno 350//350//180
+#define ancho_terreno ancho_pantalla//504//159
+#define alto_terreno alto_pantalla//350//180
 #define gravedad 0.03//0.04//0.03
 #define piso 1//Piso que no se carcome
 #define colores_fondo 240//Comienzan los colores reservados para el fondo
@@ -244,10 +242,23 @@ void actualizar_controles();
 void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely,byte color);
 float random(float min,float max);
 void advance(float *angle,float *vel,float *x1,float *y1);
+void generar_terreno();
+void carcomer(int desx,int desy,int radio);
+void escribir(int desx,int desy,tipo_clipregion *regdestino,tipo_imagen *origen,char *texto);
+void blt(int desx,int desy,tipo_clipregion *regorigen,tipo_clipregion *regdestino,tipo_imagen *origen,tipo_imagen *destino,int flags);
+void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,tipo_imagen *destino);
+void farma(tipo_arma *datos,int jugador);
+void fbala(tipo_bala *datos);
+void fexplosion(tipo_explosion *datos);
+void fgusano(tipo_gusano *datos);
+void fparticula(tipo_particula *datos);
+void fresto(tipo_resto *datos);
+void fsoga(int jugador);
 
 
 //Variables GLOBALES
     trgbtriple paleta1[256];
+    
     byte back_buffer[ancho_pantalla*alto_pantalla];
 
     tipo_scroll scroll[max_jugadores];
@@ -293,10 +304,13 @@ void advance(float *angle,float *vel,float *x1,float *y1);
 
 
     //Controles
-        byte keyboard[256];
+        //byte keyboard[256];
+        byte *keyboard;
         byte control[max_jugadores][max_controles];
         byte conf_control[max_jugadores][max_controles];
 
+SDL_Surface* screen;
+SDL_Surface* sdlBuffer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,19 +320,19 @@ void advance(float *angle,float *vel,float *x1,float *y1);
 void configurar_teclas()
 {
     int contj,contc,ccapturado,c;
-    int nom_controles[max_controles];
+    char * nom_controles[max_controles];
     FILE *archivo;
     
-    nom_controles[c_arriba]=(int)"UP";
-    nom_controles[c_abajo]=(int)"DOWN";
-    nom_controles[c_izquierda]=(int)"LEFT";
-    nom_controles[c_derecha]=(int)"RIGHT";
-    nom_controles[c_disparo]=(int)"FIRE";
-    nom_controles[c_salto]=(int)"JUMP";
-    nom_controles[c_cambio]=(int)"CHANGE";
+    nom_controles[c_arriba]="UP";
+    nom_controles[c_abajo]="DOWN";
+    nom_controles[c_izquierda]="LEFT";
+    nom_controles[c_derecha]="RIGHT";
+    nom_controles[c_disparo]="FIRE";
+    nom_controles[c_salto]="JUMP";
+    nom_controles[c_cambio]="CHANGE";
 
 
-    _setvideomode(_DEFAULTMODE);
+    //_setvideomode(_DEFAULTMODE);
     CapturarTeclado(keyboard);
 
     /*while (1)
@@ -332,12 +346,12 @@ void configurar_teclas()
 
     for (contj=0;contj<max_jugadores;contj++)
     {
-        _setbkcolor(_BLACK);
+        /*_setbkcolor(_BLACK);
         _settextcolor(7);
         _clearscreen(_GCLEARSCREEN);
         _settextcolor(15);
         _setbkcolor(_BLUE);
-        _outtext(" Keyboard Configuration Program  V1.0  Copyright 2002 ");
+        _outtext(" Keyboard Configuration Program  V1.0  Copyright 2002 ");*/
         printf("\n\n");
         
         printf("PLAYER    %i :\n\n",contj+1);
@@ -348,6 +362,7 @@ void configurar_teclas()
             ccapturado=-1;
             while (ccapturado==-1)
             {
+                SDL_PumpEvents();
                 for (c=0;c<128;c++)
                 {
                     if(keyboard[c])
@@ -358,7 +373,7 @@ void configurar_teclas()
 
             printf("...........READY\n\n");
             while (keyboard[ccapturado])
-                ;
+                SDL_PumpEvents();
         }
     }
     LiberarTeclado();
@@ -388,13 +403,17 @@ void actualizar_controles()
 ////////////////////////////////////////-> MAIN <-/////////////////////////////////////////////
 main()
 {
+    SDL_Init( SDL_INIT_EVERYTHING );
+    screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, 0);
+    sdlBuffer = SDL_CreateRGBSurfaceFrom(&back_buffer, ancho_pantalla, alto_pantalla, 8, ancho_pantalla, 0, 0, 0, 0);
+    keyboard = SDL_GetKeyState(NULL);
     
     clock_t tiempo;
     float t2,fps=0;
     int c=0,j=0,c_relativasX,c_relativasY,ccuadros;//,tiempo;
     byte *vga=(byte *)(0xA000 <<4);//Matriz de la Pantalla
     FILE *archivo;
-    char *cfps;
+    char cfps[10];
 
     crpantalla.x0=0;
     crpantalla.y0=0;
@@ -532,18 +551,30 @@ main()
         }
     }
 
-    _setvideomode(_MRES256COLOR);
+    //_setvideomode(_MRES256COLOR);
 
     
 //Cargo la Paleta al Sistema
-    loadpcx("gamepal.pcx",imagen_temppal,paleta1);
-    for (c=0;c<256;c++)
+    loadpcx("gamepal.pcx", imagen_temppal, paleta1);
+    
+    SDL_Color sdlPalette[256];
+    for (c = 0; c < 256; c++)
+    {
+        sdlPalette[c].r = paleta1[c].r;
+        sdlPalette[c].g = paleta1[c].g;
+        sdlPalette[c].b = paleta1[c].b;
+    }
+    
+    SDL_SetPalette(screen, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
+    SDL_SetPalette(sdlBuffer, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
+    
+    /*for (c=0;c<256;c++)
     {
         outp(0x3C8,c);
         outp(0x3C9,paleta1[c].r>>2);
         outp(0x3C9,paleta1[c].g>>2);
         outp(0x3C9,paleta1[c].b>>2);
-    }
+    }*/
 
 
 
@@ -571,7 +602,7 @@ main()
     CapturarTeclado(keyboard);
     
     tiempo=clock();
-    while (keyboard[key_esc]==FALSE)
+    while (keyboard[SDLK_ESCAPE]==FALSE)
     {
         actualizar_controles();
 
@@ -606,7 +637,9 @@ main()
           
             scroll[c].x=(int)camara[c].x-(cregionpj[c].x1-cregionpj[c].x0)/2;
             scroll[c].y=(int)camara[c].y-(cregionpj[c].y1-cregionpj[c].y0)/2;
+            
 
+            
             if (scroll[c].x<0)
                 scroll[c].x=0;
             if (scroll[c].x>ancho_terreno-(cregionpj[c].x1-cregionpj[c].x0))
@@ -629,6 +662,9 @@ main()
             crtercam.y1=scroll[c].y+(cregionpj[c].y1-cregionpj[c].y0);
 
             bltfast(c_relativasX,c_relativasY,&crtercam,&graf_terreno,&graf_back_buffer);
+            
+            sprintf(cfps, "%d", scroll[c].x);
+            escribir(0,190+c*10,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
         }
         for (c=0;c<max_jugadores;c++)
         {
@@ -717,15 +753,22 @@ main()
             tiempo=clock();
         }
 
-        itoa(fps,cfps,10);//<<--DEBUG EN PANTALLA
+        //itoa(fps,cfps,10);//<<--DEBUG EN PANTALLA
+        sprintf(cfps, "%.2f", fps);
         escribir(0,170,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
 
         
 
-        if (vsync)
+        /*if (vsync)
             while (~inp(0x3DA)&0x08);//VSync (Sincronizacion Vertical)
         
         memcpy(vga,back_buffer,ancho_pantalla*alto_pantalla);//Back Buffer a Video Mem
+        */
+        
+        SDL_BlitSurface(sdlBuffer, NULL, screen, NULL);
+        SDL_Flip(screen);
+        SDL_PumpEvents();
+        SDL_Delay(20);
 
 
 
@@ -736,7 +779,8 @@ main()
 
     LiberarTeclado();
 
-    _setvideomode(_DEFAULTMODE);
+    //_setvideomode(_DEFAULTMODE);
+    SDL_Quit();
 
     //tiempo=clock()/CLOCKS_PER_SEC;
     //printf("%f \n",fps);
@@ -2068,8 +2112,8 @@ void generar_terreno()
     byte *imagen_bloque_ter;
     byte *imagen_bloque_fon;
 
-    imagen_bloque_ter=calloc(ancho_bloque_ter*alto_bloque_ter,1);
-    imagen_bloque_fon=calloc(ancho_bloque_fon*alto_bloque_fon,1);
+    imagen_bloque_ter=(byte*)calloc(ancho_bloque_ter*alto_bloque_ter,1);
+    imagen_bloque_fon=(byte*)calloc(ancho_bloque_fon*alto_bloque_fon,1);
 
     crterreno.x0=0;
     crterreno.x1=ancho_terreno;

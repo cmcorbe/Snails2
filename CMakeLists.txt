@@ -4,7 +4,9 @@
 cmake_minimum_required (VERSION 2.8.11)
 project (LGAME)
 
-find_library(SDLLIB sdl)
+set(CMAKE_BUILD_TYPE DEBUG)
+
+find_library(SDLLIB SDL)
 
 # Create a library called "Hello" which includes the source file "hello.cxx".
 # The extension is already found. Any number of sources could be listed here.
@@ -13,4 +15,4 @@ add_executable (lgame LGAME2.C PCXDECOD.C KEYB.C)
 # Link the executable to the Hello library. Since the Hello library has
 # public include directories we will use those link directories when building
 # helloDemo
-target_link_libraries (lgame SDLLIB)
+target_link_libraries (lgame ${SDLLIB})

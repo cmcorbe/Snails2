@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "LGame2.h"
+#include "LGAME2.H"
 
 
 typedef struct tagtpcxheader
