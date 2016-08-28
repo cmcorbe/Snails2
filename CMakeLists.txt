@@ -6,7 +6,7 @@ project (LGAME)
 
 set(CMAKE_BUILD_TYPE DEBUG)
 
-find_library(SDLLIB SDL)
+find_library(SDLLIB SDL "F:/Prog/SDL-1.2.15")
 
 # Create a library called "Hello" which includes the source file "hello.cxx".
 # The extension is already found. Any number of sources could be listed here.

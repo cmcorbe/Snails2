@@ -11,9 +11,11 @@
 //CONSTANTES
 #define pi 3.14159264
 #define vsync TRUE//TRUE
-#define ancho_pantalla 640//320
-#define alto_pantalla 480//200
-#define alto_tablero 20//20
+#define ancho_pantalla 320//320
+#define alto_pantalla 200//200
+//#define ancho_pantalla_video 640
+//#define alto_pantalla_video 480
+#define alto_tablero 10//20
 #define separador_pantallas 2//Pares
 #define color_transparente 0
 #define max_jugadores 2
@@ -33,8 +35,8 @@
 #define colores_techo 164
 
 //Terreno
-#define ancho_terreno ancho_pantalla//504//159
-#define alto_terreno alto_pantalla//350//180
+#define ancho_terreno 504//159
+#define alto_terreno 350//180
 #define gravedad 0.03//0.04//0.03
 #define piso 1//Piso que no se carcome
 #define colores_fondo 240//Comienzan los colores reservados para el fondo
@@ -258,7 +260,7 @@ void fsoga(int jugador);
 
 //Variables GLOBALES
     trgbtriple paleta1[256];
-    
+
     byte back_buffer[ancho_pantalla*alto_pantalla];
 
     tipo_scroll scroll[max_jugadores];
@@ -292,7 +294,7 @@ void fsoga(int jugador);
         byte imagen_explosiones[g_ancho_explo1 * g_alto_explo1 * explo1_max_anim];
         byte imagen_temppal[1];
 
-        
+
         tipo_imagen graf_back_buffer;
         tipo_imagen graf_fuente1;
         tipo_imagen graf_gusano[max_jugadores];
@@ -322,7 +324,7 @@ void configurar_teclas()
     int contj,contc,ccapturado,c;
     char * nom_controles[max_controles];
     FILE *archivo;
-    
+
     nom_controles[c_arriba]="UP";
     nom_controles[c_abajo]="DOWN";
     nom_controles[c_izquierda]="LEFT";
@@ -353,9 +355,9 @@ void configurar_teclas()
         _setbkcolor(_BLUE);
         _outtext(" Keyboard Configuration Program  V1.0  Copyright 2002 ");*/
         printf("\n\n");
-        
+
         printf("PLAYER    %i :\n\n",contj+1);
-        
+
         for (contc=0;contc<max_controles;contc++)
         {
             printf("%s %s\n","PRESS KEY",nom_controles[contc]);
@@ -401,13 +403,14 @@ void actualizar_controles()
 
 
 ////////////////////////////////////////-> MAIN <-/////////////////////////////////////////////
-main()
+int main(int argc, char *argv[])
 {
+    printf("todo ok");
     SDL_Init( SDL_INIT_EVERYTHING );
-    screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, 0);
+    screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, SDL_HWSURFACE | SDL_FULLSCREEN | SDL_DOUBLEBUF);
     sdlBuffer = SDL_CreateRGBSurfaceFrom(&back_buffer, ancho_pantalla, alto_pantalla, 8, ancho_pantalla, 0, 0, 0, 0);
     keyboard = SDL_GetKeyState(NULL);
-    
+
     clock_t tiempo;
     float t2,fps=0;
     int c=0,j=0,c_relativasX,c_relativasY,ccuadros;//,tiempo;
@@ -470,7 +473,7 @@ main()
     graf_back_buffer.imagen=back_buffer;
     graf_back_buffer.ancho=ancho_pantalla;
     graf_back_buffer.alto=alto_pantalla;
-        
+
     graf_terreno.imagen=imagen_terreno;
     graf_terreno.ancho=ancho_terreno;
     graf_terreno.alto=alto_terreno;
@@ -523,10 +526,10 @@ main()
     fclose(archivo);
 
     loadpcx("fuente1.pcx",imagen_fuente1,paleta1);
-    
+
     for (c=0;c<max_jugadores;c++)
         loadpcx("caracol.pcx",imagen_gusano[c],paleta1);
-       
+
     loadpcx("armas.pcx",imagen_armas,paleta1);
     loadpcx("balas.pcx",imagen_balas,paleta1);
     loadpcx("explo.pcx",imagen_explosiones,paleta1);
@@ -553,10 +556,10 @@ main()
 
     //_setvideomode(_MRES256COLOR);
 
-    
+
 //Cargo la Paleta al Sistema
     loadpcx("gamepal.pcx", imagen_temppal, paleta1);
-    
+
     SDL_Color sdlPalette[256];
     for (c = 0; c < 256; c++)
     {
@@ -564,10 +567,10 @@ main()
         sdlPalette[c].g = paleta1[c].g;
         sdlPalette[c].b = paleta1[c].b;
     }
-    
+
     SDL_SetPalette(screen, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
     SDL_SetPalette(sdlBuffer, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
-    
+
     /*for (c=0;c<256;c++)
     {
         outp(0x3C8,c);
@@ -583,12 +586,12 @@ main()
     {
         back_buffer[c]=16;
     }
-    
+
     for (c=0;c<max_jugadores;c++)
     {
         camara[c].x=ancho_terreno/2;
         camara[c].y=alto_terreno/2;
-                
+
         for (j=0;j<max_armas;j++)
             jugador[c].arma[j].tipo=j;
 
@@ -598,9 +601,9 @@ main()
         gusano[c].gy=gusano[c].y-g_alto_gusano/2-1;
 
     }
-    
+
     CapturarTeclado(keyboard);
-    
+
     tiempo=clock();
     while (keyboard[SDLK_ESCAPE]==FALSE)
     {
@@ -618,7 +621,7 @@ main()
                     {
                         camara[c].x+=(gusano[c].gx-camara[c].x)/cam_vel;
                         camara[c].y+=(gusano[c].gy-camara[c].y)/cam_vel;
-                    }              
+                    }
                     else
                     {
                         camara[c].c=0;
@@ -634,12 +637,12 @@ main()
              }
              if (gusano[c].vida==TRUE)
                 fgusano(&gusano[c]);
-          
+
             scroll[c].x=(int)camara[c].x-(cregionpj[c].x1-cregionpj[c].x0)/2;
             scroll[c].y=(int)camara[c].y-(cregionpj[c].y1-cregionpj[c].y0)/2;
-            
 
-            
+
+
             if (scroll[c].x<0)
                 scroll[c].x=0;
             if (scroll[c].x>ancho_terreno-(cregionpj[c].x1-cregionpj[c].x0))
@@ -649,7 +652,7 @@ main()
             if (scroll[c].y>alto_terreno-(cregionpj[c].y1-cregionpj[c].y0))
                 scroll[c].y=alto_terreno-(cregionpj[c].y1-cregionpj[c].y0);
         }
-        
+
 //Actualizo el fondo
         for (c=0;c<max_jugadores;c++)
         {
@@ -662,7 +665,7 @@ main()
             crtercam.y1=scroll[c].y+(cregionpj[c].y1-cregionpj[c].y0);
 
             bltfast(c_relativasX,c_relativasY,&crtercam,&graf_terreno,&graf_back_buffer);
-            
+
             sprintf(cfps, "%d", scroll[c].x);
             escribir(0,190+c*10,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
         }
@@ -698,13 +701,13 @@ main()
                     crtemp.y1=crtemp.y0+g_alto_arma;
                     blt(jugador[j].arma[jugador[j].selec].gx+c_relativasX-scroll[c].x,jugador[j].arma[jugador[j].selec].gy+c_relativasY-scroll[c].y,&crtemp,&cregionpj[c],&graf_armas,&graf_back_buffer,gusano[j].flags);
                     }
-                }    
+                }
             }
             if (gusano[c].vida==TRUE)
             {
             crgus.x0=gusano[c].graph*g_ancho_gusano;
             crgus.x1=crgus.x0+g_ancho_gusano;
-            
+
             blt(gusano[c].gx+c_relativasX-scroll[c].x,gusano[c].gy+c_relativasY-scroll[c].y,&crgus,&cregionpj[c],&graf_gusano[c],&graf_back_buffer,gusano[c].flags);
 
             blt((int)gusano[c].mirax+c_relativasX-scroll[c].x,(int)gusano[c].miray+c_relativasY-scroll[c].y,&crmira,&cregionpj[c],&graf_gusano[c],&graf_back_buffer,flag_n);
@@ -714,7 +717,7 @@ main()
             crtemp.y0=jugador[c].arma[jugador[c].selec].tipo*g_alto_arma;
             crtemp.y1=crtemp.y0+g_alto_arma;
             blt(jugador[c].arma[jugador[c].selec].gx+c_relativasX-scroll[c].x,jugador[c].arma[jugador[c].selec].gy+c_relativasY-scroll[c].y,&crtemp,&cregionpj[c],&graf_armas,&graf_back_buffer,gusano[c].flags);
-            }            
+            }
         }
         for (c=0;c<max_restos;c++)
         {
@@ -757,18 +760,27 @@ main()
         sprintf(cfps, "%.2f", fps);
         escribir(0,170,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
 
-        
+
 
         /*if (vsync)
             while (~inp(0x3DA)&0x08);//VSync (Sincronizacion Vertical)
-        
+
         memcpy(vga,back_buffer,ancho_pantalla*alto_pantalla);//Back Buffer a Video Mem
         */
-        
+
+        /*
+        SDL_Rect destino;
+
+        destino.x = 0;
+        destino.y = 0;
+        destino.h = ancho_pantalla_video;
+        destino.w = alto_pantalla;
+        SDL_BlitScaled(sdlBuffer, NULL, screen, &destino);
+        */
         SDL_BlitSurface(sdlBuffer, NULL, screen, NULL);
         SDL_Flip(screen);
         SDL_PumpEvents();
-        SDL_Delay(20);
+        SDL_Delay(15);
 
 
 
@@ -920,13 +932,13 @@ void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,ti
     dy=desy;
     dwancho=(regorigen->x1-regorigen->x0)/4;
     par=((regorigen->x1-regorigen->x0) % 4);
-    
-    if (par==0)    
+
+    if (par==0)
         for (oy=regorigen->y0;oy<regorigen->y1;oy++)
         {
             dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
             dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-            
+
             for (i=0; i<dwancho; i++)
                 dwdimagen[i].dw=dwoimagen[i].dw;
             dy++;
@@ -937,7 +949,7 @@ void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,ti
             {
                 dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
                 dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-            
+
                 for (i=0; i<dwancho; i++)
                     dwdimagen[i].dw=dwoimagen[i].dw;
                 dwdimagen[i].w=dwoimagen[i].w;
@@ -949,7 +961,7 @@ void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,ti
                 {
                     dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
                     dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-                
+
                     for (i=0; i<dwancho; i++)
                         dwdimagen[i].dw=dwoimagen[i].dw;
                     dwdimagen[i].b=dwoimagen[i].b;
@@ -961,10 +973,10 @@ void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,ti
                     {
                         dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
                         dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-                    
+
                         for (i=0; i<dwancho; i++)
                             dwdimagen[i].dw=dwoimagen[i].dw;
-        
+
                         wdimagen=(_u_word*) &dwdimagen[i];
                         woimagen=(_u_word*) &dwoimagen[i];
                         wdimagen[0].w=woimagen[0].w;
@@ -1162,8 +1174,8 @@ void fgusano(tipo_gusano *datos)
                     datos->velx+=friccion;
                 else
                     datos->velx=0;
-                    
-            
+
+
             if (datos->vely>1)
             {
                 datos->vely=-datos->vely/rebote;
@@ -1255,7 +1267,7 @@ void fgusano(tipo_gusano *datos)
         datos->velx=0;
         datos->vely=0;
         datos->x=random(ancho_gusano,ancho_terreno-ancho_gusano);
-        datos->y=random(alto_gusano,alto_terreno-alto_gusano); 
+        datos->y=random(alto_gusano,alto_terreno-alto_gusano);
         camara[datos->jugador].efecto=cam_muerto;
 
         datos->vida=FALSE;
@@ -1294,7 +1306,7 @@ void fgusano(tipo_gusano *datos)
                 datos->vely=0;
     }
 
-    
+
     if (control[datos->jugador][c_salto] && control[datos->jugador][c_cambio])
     {
         if (datos->soga==FALSE)
@@ -1309,7 +1321,7 @@ void fgusano(tipo_gusano *datos)
             soga[datos->jugador].engusano=-1;
         }
     }
-        
+
 
 
     datos->gx=(int)datos->x-g_ancho_gusano/2;
@@ -1338,7 +1350,7 @@ void fgusano(tipo_gusano *datos)
         datos->cambio=TRUE;
         if (jugador[datos->jugador].selec<0)
             jugador[datos->jugador].selec=max_armas-1;
-    }  
+    }
 
     farma(&jugador[datos->jugador].arma[jugador[datos->jugador].selec],datos->jugador);
 
@@ -1401,7 +1413,7 @@ void fsoga(int jugador)
         {
             gusano[soga[jugador].engusano].velx+=tvelx/soga[jugador].tension;//Muevo al que
             gusano[soga[jugador].engusano].vely+=tvely/soga[jugador].tension;//enganche
-            
+
             gusano[jugador].velx-=tvelx/soga[jugador].tension;//Elasticidad
             gusano[jugador].vely-=tvely/soga[jugador].tension;
             soga[jugador].velx=0;
@@ -1416,7 +1428,7 @@ void fsoga(int jugador)
 
     tvelx=tvelx/norma;
     tvely=tvely/norma;
- 
+
     tx=soga[jugador].x;
     ty=soga[jugador].y;
 
@@ -1430,7 +1442,7 @@ void fsoga(int jugador)
         {
             dibujando=FALSE;//No encontre al gusano
         }
-        
+
         tx+=tvelx;
         ty+=tvely;
         if (color==color_soga)
@@ -1606,7 +1618,7 @@ void farma(tipo_arma *datos,int jugador)
 
     }
 /*    else
-    {    
+    {
         datos->ultimo_graph=datos->graph;
     }*/
 
@@ -1615,7 +1627,7 @@ void farma(tipo_arma *datos,int jugador)
     {
         datos->reload++;
         if (datos->reload==0)
-        {         
+        {
             if (datos->ammo==0)
             {
                 datos->reload=-esp_reload;
@@ -1668,7 +1680,7 @@ void farma(tipo_arma *datos,int jugador)
         datos->ultimo_graph=datos->graph;//Para moverla mientras disparo
         }
     }
-        
+
     switch (gusano[jugador].graph)
     {
         case 0:
@@ -1745,7 +1757,7 @@ void fresto(tipo_resto *datos)
     {
         datos->x-=datos->velx;
         datos->y-=datos->vely;
-        
+
         datos->velx=datos->velx/1.5;
         datos->vely=-datos->vely/3;
 
@@ -1777,7 +1789,7 @@ void fbala(tipo_bala *datos)
     int c,j,n;
 
 
-    
+
     datos->vely+=datos->caida;
     for(c=0;c<datos->velporcuadro;c++)
     {
@@ -1795,8 +1807,8 @@ void fbala(tipo_bala *datos)
                 {
                     datos->x-=datos->velx;
                     datos->y-=datos->vely;
-    
-                                        
+
+
                     datos->velx=-datos->velx/datos->brebote;
                     datos->vely=-datos->vely/datos->brebote;
                 }
@@ -1822,10 +1834,10 @@ void fbala(tipo_bala *datos)
                 {
                     datos->x-=datos->velx;
                     datos->y-=datos->vely;
-    
+
                     //if (abs(datos->velx)>abs(datos->vely))
                         datos->velx=-datos->velx/datos->brebote;
-                    //else    
+                    //else
                         datos->vely=-datos->vely/datos->brebote;
                 }
                 else
@@ -1869,7 +1881,7 @@ void fbala(tipo_bala *datos)
                 n=abs(2*(datos->multi_dir-1)-n);
 
             datos->graph+=n;
-        
+
             datos->flags=flag_n;
             if (datos->angle>pi/2 && datos->angle<3*pi/2)
                 datos->flags=flag_x;
@@ -1892,7 +1904,7 @@ void fbala(tipo_bala *datos)
 
     datos->gx=datos->x-g_ancho_bala/2;
     datos->gy=datos->y-g_alto_bala/2;
-    
+
 
     for (j=0;j<max_jugadores;j++)//Repersentacion en pantalla
     {
@@ -1928,7 +1940,7 @@ void carcomer(int desx,int desy,int radio)
                     {
                         if (graf_terreno.imagen[ctemp]<colores_fondo)
                             crear_particulas(p_tierra,1,x,y,0,-1,graf_terreno.imagen[ctemp]);
-                    
+
                         graf_terreno.imagen[ctemp]=graf_fondo.imagen[ctemp];
                     }
                 }
@@ -1940,7 +1952,7 @@ void carcomer(int desx,int desy,int radio)
                     {
                         if (graf_terreno.imagen[ctemp]<colores_fondo)
                             crear_particulas(p_tierra,1,x,y,0,-1,graf_terreno.imagen[ctemp]);
-                    
+
                         graf_terreno.imagen[ctemp]=graf_fondo.imagen[ctemp];
                     }
                 }
@@ -1952,7 +1964,7 @@ void carcomer(int desx,int desy,int radio)
                     {
                         if (graf_terreno.imagen[ctemp]<colores_fondo)
                             crear_particulas(p_tierra,1,x,y,0,-1,graf_terreno.imagen[ctemp]);
-                    
+
                         graf_terreno.imagen[ctemp]=graf_fondo.imagen[ctemp];
                     }
                 }
@@ -1964,7 +1976,7 @@ void carcomer(int desx,int desy,int radio)
                     {
                         if (graf_terreno.imagen[ctemp]<colores_fondo)
                             crear_particulas(p_tierra,1,x,y,0,-1,graf_terreno.imagen[ctemp]);
-                    
+
                         graf_terreno.imagen[ctemp]=graf_fondo.imagen[ctemp];
                     }
                 }
@@ -2140,7 +2152,7 @@ void generar_terreno()
         }
     }
     //Ya puse el fondo en terreno
-    
+
     //Pongo el terreno en fondo
     graf_bloque_ter.imagen=imagen_bloque_ter;
     graf_bloque_ter.ancho=ancho_bloque_ter;
@@ -2176,7 +2188,7 @@ void generar_terreno()
     rugosidad_techo=2;
     v_dire_piso=5;//5//cambio de la direccion de la pendiente
     v_dire_techo=4;//4//mientras mas grande mas dificil de cambiar(menos ondulado)
-    
+
 /*
     ondulacion_piso=0.1;//acel de la ondulacion piso
     ondulacion_techo=0.07;//acel de la ondulacion techo
@@ -2186,7 +2198,7 @@ void generar_terreno()
     v_dire_piso=10;//cambio de la direccion de la pendiente
     v_dire_techo=3;//mientras mas grande mas dificil de cambiar(menos ondulado)
 */
-   
+
     for (c=0;c<cavernas;c++)
     {
         x=random(0,ancho_terreno);
@@ -2202,7 +2214,7 @@ void generar_terreno()
         subir_techo=TRUE;
         vel_techo=-0.4;
         subir_piso=FALSE;
-        
+
         while (escavando)
         {
             x++;
@@ -2215,7 +2227,7 @@ void generar_terreno()
                     subir_piso=TRUE;
                 else
                     subir_piso=FALSE;
-        
+
                 vel_piso=-vel_piso/random(1.5,4);
                 colina=0;
             }
@@ -2225,10 +2237,10 @@ void generar_terreno()
                 if (subir_techo==FALSE)
                     subir_techo=TRUE;
                 else
-                    subir_techo=FALSE;                   
+                    subir_techo=FALSE;
 
             }
-            
+
             if (subir_piso)
                 vel_piso+=random(-ondulacion_piso,0);
             else
@@ -2248,7 +2260,7 @@ void generar_terreno()
                 if (altura<6)
                     subir_techo=TRUE;
             }
-            
+
 
 
             y+=vel_piso+random(-rugosidad_piso,rugosidad_piso);
@@ -2257,7 +2269,7 @@ void generar_terreno()
             for(i=y;i>(y-altura);i--)
             {
                 color=color_transparente;
-                    
+
                 ctemp=x+i*ancho_terreno;
                 if (ctemp>=0 && ctemp<ctclip)
                 {
@@ -2277,8 +2289,8 @@ void generar_terreno()
                     graf_fondo.imagen[ctemp]=color;
                 }
             }
-            
-        }      
+
+        }
     }
 
     blt(0,0,&crterreno,&crterreno,&graf_fondo,&graf_terreno,flag_n);//BLT la tierra sobre el fondo
