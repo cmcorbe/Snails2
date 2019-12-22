@@ -6,13 +6,20 @@ project (LGAME)
 
 set(CMAKE_BUILD_TYPE DEBUG)
 
+set(CMAKE_C_STANDARD 99)
+
 find_library(SDLLIB SDL "F:/Prog/SDL-1.2.15")
 
 # Create a library called "Hello" which includes the source file "hello.cxx".
 # The extension is already found. Any number of sources could be listed here.
-add_executable (lgame LGAME2.C PCXDECOD.C KEYB.C)
+add_executable (lgame
+    lgame2.c
+    pcxdecod.c
+    keyb.c
+    fps_limiter.c
+)
 
 # Link the executable to the Hello library. Since the Hello library has
 # public include directories we will use those link directories when building
 # helloDemo
-target_link_libraries (lgame ${SDLLIB})
+target_link_libraries (lgame m ${SDLLIB})

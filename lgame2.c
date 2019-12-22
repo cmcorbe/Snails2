@@ -5,12 +5,13 @@
 #include <math.h>
 #include <malloc.h>
 #include <SDL/SDL.h>
-#include "LGAME2.H"
+#include "lgame2.h"
+#include "fps_limiter.h"
 
 
 //CONSTANTES
 #define pi 3.14159264
-#define vsync TRUE//TRUE
+#define FPS 60
 #define ancho_pantalla 320//320
 #define alto_pantalla 200//200
 //#define ancho_pantalla_video 640
@@ -35,8 +36,8 @@
 #define colores_techo 164
 
 //Terreno
-#define ancho_terreno 504//159
-#define alto_terreno 350//180
+#define ancho_terreno 504//504//159
+#define alto_terreno alto_pantalla//350//180
 #define gravedad 0.03//0.04//0.03
 #define piso 1//Piso que no se carcome
 #define colores_fondo 240//Comienzan los colores reservados para el fondo
@@ -45,7 +46,7 @@
 
 
 //Particulas
-#define max_particulas 400//400
+#define max_particulas 400000//400
 #define rebote_particula 3//3
 #define colores_sangre 73
 #define fin_colores_sangre 75
@@ -55,14 +56,14 @@
 #define p_cuagulo 2
 
 //Restos
-#define max_restos 4000//40
+#define max_restos 40000//40
 #define ancho_resto 7
 #define alto_resto 5
-#define restos_por_muerte 5//5
+#define restos_por_muerte 500//5
 #define cuagulo_por_muerte 30//30
 
 //Gusano
-#define energia_ini 1000//1000
+#define energia_ini 1//1000
 #define alto_gusano 11
 #define ancho_gusano 11
 #define g_alto_gusano 11
@@ -242,7 +243,7 @@ void configurar_teclas();
 void actualizar_controles();
 //void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely);
 void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely,byte color);
-float random(float min,float max);
+float random_range(float min, float max);
 void advance(float *angle,float *vel,float *x1,float *y1);
 void generar_terreno();
 void carcomer(int desx,int desy,int radio);
@@ -400,6 +401,11 @@ void actualizar_controles()
     }
 }
 
+void wait(float seconds)
+{
+    clock_t start = clock();
+    while (((float)(clock() - start)) / CLOCKS_PER_SEC < seconds);
+}
 
 
 ////////////////////////////////////////-> MAIN <-/////////////////////////////////////////////
@@ -413,8 +419,7 @@ int main(int argc, char *argv[])
 
     clock_t tiempo;
     float t2,fps=0;
-    int c=0,j=0,c_relativasX,c_relativasY,ccuadros;//,tiempo;
-    byte *vga=(byte *)(0xA000 <<4);//Matriz de la Pantalla
+    int c=0, j=0, c_relativasX, c_relativasY, ccuadros=0;
     FILE *archivo;
     char cfps[10];
 
@@ -571,15 +576,6 @@ int main(int argc, char *argv[])
     SDL_SetPalette(screen, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
     SDL_SetPalette(sdlBuffer, SDL_LOGPAL | SDL_PHYSPAL, sdlPalette, 0, 256);
 
-    /*for (c=0;c<256;c++)
-    {
-        outp(0x3C8,c);
-        outp(0x3C9,paleta1[c].r>>2);
-        outp(0x3C9,paleta1[c].g>>2);
-        outp(0x3C9,paleta1[c].b>>2);
-    }*/
-
-
 
 //Pongo el back buffer en negro
     for (c=0;c<ancho_pantalla*alto_pantalla;c++)
@@ -595,8 +591,8 @@ int main(int argc, char *argv[])
         for (j=0;j<max_armas;j++)
             jugador[c].arma[j].tipo=j;
 
-        gusano[c].x=random(ancho_gusano,ancho_terreno-ancho_gusano);
-        gusano[c].y=random(alto_gusano,alto_terreno-alto_gusano);
+        gusano[c].x=random_range(ancho_gusano,ancho_terreno-ancho_gusano);
+        gusano[c].y=random_range(alto_gusano,alto_terreno-alto_gusano);
         gusano[c].gx=gusano[c].x-g_ancho_gusano/2;
         gusano[c].gy=gusano[c].y-g_alto_gusano/2-1;
 
@@ -604,11 +600,13 @@ int main(int argc, char *argv[])
 
     CapturarTeclado(keyboard);
 
+    fps_set(FPS);
     tiempo=clock();
     while (keyboard[SDLK_ESCAPE]==FALSE)
     {
-        actualizar_controles();
+        fps_start_game_loop();
 
+        actualizar_controles();
 
         for (c=0;c<max_jugadores;c++)
         {
@@ -666,8 +664,8 @@ int main(int argc, char *argv[])
 
             bltfast(c_relativasX,c_relativasY,&crtercam,&graf_terreno,&graf_back_buffer);
 
-            sprintf(cfps, "%d", scroll[c].x);
-            escribir(0,190+c*10,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
+            sprintf(cfps, "EGY:%d", gusano[c].energia);
+            escribir(c_relativasX, alto_pantalla-alto_tablero-10, &crpantalla, &graf_fuente1, cfps);
         }
         for (c=0;c<max_jugadores;c++)
         {
@@ -747,26 +745,9 @@ int main(int argc, char *argv[])
                 fparticula(&particula[c]);
         }
 
-        ccuadros++;
-        t2=(float)(clock()-tiempo)/CLOCKS_PER_SEC;
-        if (t2>=2)
-        {
-            fps=ccuadros/t2;
-            ccuadros=0;
-            tiempo=clock();
-        }
-
-        //itoa(fps,cfps,10);//<<--DEBUG EN PANTALLA
-        sprintf(cfps, "%.2f", fps);
-        escribir(0,170,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
-
-
-
-        /*if (vsync)
-            while (~inp(0x3DA)&0x08);//VSync (Sincronizacion Vertical)
-
-        memcpy(vga,back_buffer,ancho_pantalla*alto_pantalla);//Back Buffer a Video Mem
-        */
+        // Mostrar FPS
+        sprintf(cfps, "FPS:%0.f", fps);
+        escribir(0,alto_pantalla-alto_tablero-10-10,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
 
         /*
         SDL_Rect destino;
@@ -780,13 +761,21 @@ int main(int argc, char *argv[])
         SDL_BlitSurface(sdlBuffer, NULL, screen, NULL);
         SDL_Flip(screen);
         SDL_PumpEvents();
-        SDL_Delay(15);
+        //wait(1.0 / 70.0);
+        fps_end_game_loop();
 
+        // Calcular FPS
+        ccuadros++;
+        t2 = ((float) (clock() - tiempo)) / CLOCKS_PER_SEC;
+        if (t2>2)
+        {
+            fps=ccuadros/t2;
+            ccuadros=0;
+            tiempo=clock();
+        }
 
 
 //Pantalla actualizada
-
-
     }
 
     LiberarTeclado();
@@ -986,7 +975,7 @@ void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,ti
 }
 
 
-float random(float min,float max)
+float random_range(float min,float max)
 {
         float result;
 
@@ -1249,11 +1238,11 @@ void fgusano(tipo_gusano *datos)
                 if (resto[c].vida==FALSE)
                 {
                     resto[c].jugador=datos->jugador;
-                    resto[c].velx=datos->velx/2+random(-1.5,1.5);
-                    resto[c].vely=datos->vely/2+random(-2,0);
-                    resto[c].x=datos->x+random(-3,3);
-                    resto[c].y=datos->y+random(-3,3);
-                    resto[c].ani_vel=(int)random(4,10);
+                    resto[c].velx=datos->velx/2+random_range(-1.5,1.5);
+                    resto[c].vely=datos->vely/2+random_range(-2,0);
+                    resto[c].x=datos->x+random_range(-3,3);
+                    resto[c].y=datos->y+random_range(-3,3);
+                    resto[c].ani_vel=(int)random_range(4,10);
                     resto[c].vida=TRUE;
                     break;
                 }
@@ -1266,8 +1255,8 @@ void fgusano(tipo_gusano *datos)
         datos->graph=0;
         datos->velx=0;
         datos->vely=0;
-        datos->x=random(ancho_gusano,ancho_terreno-ancho_gusano);
-        datos->y=random(alto_gusano,alto_terreno-alto_gusano);
+        datos->x=random_range(ancho_gusano,ancho_terreno-ancho_gusano);
+        datos->y=random_range(alto_gusano,alto_terreno-alto_gusano);
         camara[datos->jugador].efecto=cam_muerto;
 
         datos->vida=FALSE;
@@ -1587,8 +1576,8 @@ void farma(tipo_arma *datos,int jugador)
                     bala[i].x=bx;
                     bala[i].y=by;
                     bala[i].angle=gusano[jugador].angle;
-                    angle=gusano[jugador].angle+random(-esp_desvio,esp_desvio);
-                    temp_vel=esp_balavel+random(-esp_variarvel,esp_variarvel);
+                    angle=gusano[jugador].angle+random_range(-esp_desvio,esp_desvio);
+                    temp_vel=esp_balavel+random_range(-esp_variarvel,esp_variarvel);
                     bala[i].velx=cos(angle)*temp_vel;
                     bala[i].vely=-sin(angle)*temp_vel;
                     bala[i].velporcuadro=esp_velporcuadro;
@@ -1983,7 +1972,7 @@ void carcomer(int desx,int desy,int radio)
             }
         }
     }
-    //crear_particulas(p_tierra,radio,desx,desy,random(-1,1),random(0,-3));
+    //crear_particulas(p_tierra,radio,desx,desy,random_range(-1,1),random_range(0,-3));
 }
 
 
@@ -2049,17 +2038,17 @@ void fparticula(tipo_particula *datos)
 void fexplosion(tipo_explosion *datos)
 {
 
-/*
-     for (j=0;j<max_jugadores;j++)//Repersentacion en pantalla
+
+     for (int j=0;j<max_jugadores;j++)//Repersentacion en pantalla
     {
             crtemp.x0=datos->graph*g_ancho_bala;
             crtemp.x1=crtemp.x0+g_ancho_bala;
             crtemp.y0=0;
             crtemp.y1=g_alto_bala;
 
-            blt(datos->gx+cregionpj[j].x0-scroll[j].x,datos->gy+cregionpj[j].y0-scroll[j].y,&crtemp,&cregionpj[j],&graf_balas,&graf_back_buffer,datos->flags);
+            blt(datos->x+cregionpj[j].x0-scroll[j].x,datos->y+cregionpj[j].y0-scroll[j].y,&crtemp,&cregionpj[j],&graf_balas,&graf_back_buffer,0);
     }
-    */
+    
 }
 //////////////////////////////////-> Crear_particulas <-////////////////////////////////////////
 void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely,byte color)
@@ -2077,11 +2066,11 @@ void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vel
                         {
                                 particula[i].x=x;
                                 particula[i].y=y;
-                                particula[i].vely=vely+random(-2,2);
-                                particula[i].velx=velx+random(-2,2);
+                                particula[i].vely=vely+random_range(-2,2);
+                                particula[i].velx=velx+random_range(-2,2);
                                 particula[i].color=color;
                                 particula[i].tipo=tipo;
-                                //particula[i].color=(int)random(colores_tierra,fin_colores_tierra);
+                                //particula[i].color=(int)random_range(colores_tierra,fin_colores_tierra);
                         }
                         if (tipo==p_sangre)
                         {
@@ -2089,17 +2078,17 @@ void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vel
                                 particula[i].y=y;
                                 particula[i].vely=vely;
                                 particula[i].velx=velx;
-                                particula[i].color=(byte)random(colores_sangre,fin_colores_sangre);
+                                particula[i].color=(byte)random_range(colores_sangre,fin_colores_sangre);
                                 particula[i].tipo=tipo;
                         }
 
                         if (tipo==p_cuagulo)
                         {
-                                particula[i].x=x+random(-1,1);
-                                particula[i].y=y+random(-1,1);
-                                particula[i].vely=vely+random(-1,0.5);
-                                particula[i].velx=velx+random(-0.5,0.5);
-                                particula[i].color=(byte)random(colores_sangre,fin_colores_sangre);
+                                particula[i].x=x+random_range(-1,1);
+                                particula[i].y=y+random_range(-1,1);
+                                particula[i].vely=vely+random_range(-1,0.5);
+                                particula[i].velx=velx+random_range(-0.5,0.5);
+                                particula[i].color=(byte)random_range(colores_sangre,fin_colores_sangre);
                                 particula[i].tipo=tipo;
                         }
 
@@ -2178,7 +2167,7 @@ void generar_terreno()
     ctclip=ancho_terreno*alto_terreno-(ancho_terreno*piso);
 
 //PROPIEDADES de la GENERACION de Terreno
-    cavernas=random(ancho_terreno*alto_terreno/10000/2,ancho_terreno*alto_terreno/10000);//min,max
+    cavernas=random_range(ancho_terreno*alto_terreno/10000/2,ancho_terreno*alto_terreno/10000);//min,max
 
 
     ondulacion_piso=0.08;//0.08//acel de la ondulacion piso
@@ -2201,10 +2190,10 @@ void generar_terreno()
 
     for (c=0;c<cavernas;c++)
     {
-        x=random(0,ancho_terreno);
-        y=random(0,alto_terreno);
-        max_ancho=random(60,400);
-        max_altura=random(60,130);
+        x=random_range(0,ancho_terreno);
+        y=random_range(0,alto_terreno);
+        max_ancho=random_range(60,400);
+        max_altura=random_range(60,130);
         ancho=0;
         altura=0;
         vel_techo=0;
@@ -2221,18 +2210,18 @@ void generar_terreno()
             ancho++;
             colina++;
 
-            if (colina>max_piso_colina || random(0,v_dire_piso)<1)
+            if (colina>max_piso_colina || random_range(0,v_dire_piso)<1)
             {
                 if (subir_piso==FALSE)
                     subir_piso=TRUE;
                 else
                     subir_piso=FALSE;
 
-                vel_piso=-vel_piso/random(1.5,4);
+                vel_piso=-vel_piso/random_range(1.5,4);
                 colina=0;
             }
 
-            if (random(0,v_dire_techo)<1)
+            if (random_range(0,v_dire_techo)<1)
             {
                 if (subir_techo==FALSE)
                     subir_techo=TRUE;
@@ -2242,14 +2231,14 @@ void generar_terreno()
             }
 
             if (subir_piso)
-                vel_piso+=random(-ondulacion_piso,0);
+                vel_piso+=random_range(-ondulacion_piso,0);
             else
-                vel_piso+=random(0,ondulacion_piso);
+                vel_piso+=random_range(0,ondulacion_piso);
 
             if (subir_techo)
-                vel_techo+=random(-ondulacion_techo,0);
+                vel_techo+=random_range(-ondulacion_techo,0);
             else
-                vel_techo+=random(0,ondulacion_techo);
+                vel_techo+=random_range(0,ondulacion_techo);
 
             if (ancho>max_ancho/2)
             {
@@ -2263,8 +2252,8 @@ void generar_terreno()
 
 
 
-            y+=vel_piso+random(-rugosidad_piso,rugosidad_piso);
-            altura-=vel_techo+random(-rugosidad_techo,rugosidad_techo);
+            y+=vel_piso+random_range(-rugosidad_piso,rugosidad_piso);
+            altura-=vel_techo+random_range(-rugosidad_techo,rugosidad_techo);
 
             for(i=y;i>(y-altura);i--)
             {
@@ -2277,12 +2266,12 @@ void generar_terreno()
                     {
                         if (y-i+3>altura)//TECHO BORDE
                         {
-                            color=random(colores_techo+i-(y-altura),colores_techo+i-(y-altura)+1);
+                            color=random_range(colores_techo+i-(y-altura),colores_techo+i-(y-altura)+1);
                         }
 
                         if (y-i<3)//PISO BORDE
                         {
-                            color=random(colores_piso+(y-i),colores_piso+(y-i)+1);
+                            color=random_range(colores_piso+(y-i),colores_piso+(y-i)+1);
                         }
                     }
 

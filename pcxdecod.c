@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "LGAME2.H"
+#include "lgame2.h"
 
 
 typedef struct tagtpcxheader
@@ -53,7 +53,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
 
     if (header.Version==5)  /*Hay una paleta de 256 colores al final del archivo*/
     {
-    //Encontrar el fin del fichero y la posición de la paleta
+    //Encontrar el fin del fichero y la posiciï¿½n de la paleta
     /*fseek(arch1,0,SEEK_SET);
     l=0;
     while (feof(arch1)==0)
@@ -63,7 +63,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
     }
     l--;*/
 
-    //Leer tamaño del archivo
+    //Leer tamaï¿½o del archivo
     fseek(arch1,0,SEEK_END);
     l=ftell(arch1);
     
@@ -76,7 +76,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
         return(1);
 
     }
-    else    /*Error: Versi¢n no reconocida*/
+    else    /*Error: Versiï¿½n no reconocida*/
         return(2);
 
     /*Nos posicionamos al principio de los datos de imagen*/
@@ -90,7 +90,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
         /*Leer el primer byte*/
         fread(&byte1,1,1,arch1);
 
-        if (0xC0 == (byte1 & 0xC0))     /*Hay compresi¢n run-length*/
+        if (0xC0 == (byte1 & 0xC0))     /*Hay compresiï¿½n run-length*/
         {
             /*obtengamos la cantidad de pixeles*/
             c=(byte1 & 0x3F);
@@ -113,7 +113,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
                 x++;
             }
         }
-        else    /*No hay compresi¢n*/
+        else    /*No hay compresiï¿½n*/
         {
             imgbuf[y*imagewidth+x]=byte1;
             /*imgbuf[(y*imagewidth+x)*4]=paleta[byte1].b;
