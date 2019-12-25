@@ -17,8 +17,11 @@
 //#define ancho_pantalla_video 640
 //#define alto_pantalla_video 480
 #define alto_tablero 10//20
+#define alto_barra_energia 2
 #define separador_pantallas 2//Pares
 #define color_transparente 0
+#define color_barra_energia 75
+#define color_negro 16
 #define max_jugadores 2
 
 //BLT Flags
@@ -195,7 +198,7 @@ typedef struct tagtipo_camara{
 
 typedef struct tagtipo_gusano{
     float x,y,velx,vely,angle,mirax,miray,target_vel;
-    int jugador,energia,graph,c_animacion;
+    int jugador,energia,graph,c_animacion,c_barra_energia;
     int gx,gy,flags,escavo,cambio,vida,soga,key_soga;
 }tipo_gusano;
 
@@ -260,6 +263,8 @@ void fgusano(tipo_gusano *datos);
 void fparticula(tipo_particula *datos);
 void fresto(tipo_resto *datos);
 void fsoga(int jugador);
+void draw_rectangle(int start_x, int start_y, int end_x, int end_y, byte color);
+void fbarra_energia();
 
 
 //Variables GLOBALES
@@ -631,6 +636,7 @@ int main(int argc, char *argv[])
                         //{
                             gusano[c].vida=TRUE;
                             gusano[c].energia=energia_ini;
+                            gusano[c].c_barra_energia=0;
                             carcomer((int)gusano[c].x,(int)gusano[c].y,radio_escavar);
                         //}
                     }
@@ -667,8 +673,7 @@ int main(int argc, char *argv[])
 
             bltfast(c_relativasX,c_relativasY,&crtercam,&graf_terreno,&graf_back_buffer);
 
-            sprintf(cfps, "EGY:%d", gusano[c].energia);
-            escribir(c_relativasX, alto_pantalla-alto_tablero-10, &crpantalla, &graf_fuente1, cfps);
+            fbarra_energia();
         }
         for (c=0;c<max_jugadores;c++)
         {
@@ -2349,4 +2354,52 @@ void generar_terreno()
     free(imagen_bloque_ter);
     free(imagen_bloque_fon);
 
+}
+
+void fbarra_energia()
+{
+    int ancho_barra = cregionpj[0].x1 - cregionpj[0].x0 - 1;
+    float pixeles_por_energia = (float)ancho_barra / energia_ini;
+    for (int j=0; j<max_jugadores; j++)
+    {
+        if (gusano[j].energia > gusano[j].c_barra_energia)
+        {
+            gusano[j].c_barra_energia += 1.0/pixeles_por_energia;
+        }
+        if (gusano[j].energia < gusano[j].c_barra_energia && gusano[j].c_barra_energia > 0)
+        {
+            gusano[j].c_barra_energia  -= 1.0/pixeles_por_energia;
+        }
+        int llenado = gusano[j].c_barra_energia * pixeles_por_energia;
+        int x = cregionpj[j].x0;
+        int y = cregionpj[j].y1;
+        draw_rectangle(x, y, cregionpj[j].x1, y+alto_tablero, color_negro);
+        y += 3;
+        if (llenado > 0) draw_rectangle(x, y, x + llenado, y + alto_barra_energia-1, color_barra_energia);
+    }
+}
+
+int imin(int a, int b)
+{
+    if (a<b) return a; else return b;
+}
+
+int imax(int a, int b)
+{
+    if (a>b) return a; else return b;
+}
+
+void draw_rectangle(int start_x, int start_y, int end_x, int end_y, byte color)
+{
+    int x0 = imax(imin(start_x, end_x), 0);
+    int y0 = imax(imin(start_y, end_y), 0);
+    int x1 = imin(imax(start_x, end_x), ancho_pantalla-1);
+    int y1 = imin(imax(start_y, end_y), alto_pantalla-1);
+    for (int y=y0; y<=y1; y++)
+    {
+        for (int x=x0; x<=x1; x++)
+        {
+            back_buffer[y*ancho_pantalla + x] = color;
+        }
+    }
 }
