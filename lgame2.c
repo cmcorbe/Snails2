@@ -46,7 +46,7 @@
 
 
 //Particulas
-#define max_particulas 400000//400
+#define max_particulas 400
 #define rebote_particula 3//3
 #define colores_sangre 73
 #define fin_colores_sangre 75
@@ -56,14 +56,14 @@
 #define p_cuagulo 2
 
 //Restos
-#define max_restos 40000//40
+#define max_restos 40
 #define ancho_resto 7
 #define alto_resto 5
-#define restos_por_muerte 500//5
+#define restos_por_muerte 5
 #define cuagulo_por_muerte 30//30
 
 //Gusano
-#define energia_ini 1//1000
+#define energia_ini 1000
 #define alto_gusano 11
 #define ancho_gusano 11
 #define g_alto_gusano 11
@@ -131,6 +131,7 @@
 #define g_ancho_explo1 25
 #define g_alto_explo1 25
 #define explo1_max_anim 10
+#define r_ani_explo 1
 
 //Camara
 #define mostrar_muerte 70
@@ -252,7 +253,9 @@ void blt(int desx,int desy,tipo_clipregion *regorigen,tipo_clipregion *regdestin
 void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,tipo_imagen *destino);
 void farma(tipo_arma *datos,int jugador);
 void fbala(tipo_bala *datos);
+void crear_explosion(float x, float y);
 void fexplosion(tipo_explosion *datos);
+void explo_volar(tipo_bala* bala);
 void fgusano(tipo_gusano *datos);
 void fparticula(tipo_particula *datos);
 void fresto(tipo_resto *datos);
@@ -504,7 +507,7 @@ int main(int argc, char *argv[])
 
     graf_explosiones.imagen = imagen_explosiones;
     graf_explosiones.alto = g_alto_explo1;
-    graf_explosiones.ancho = g_ancho_explo1;
+    graf_explosiones.ancho = g_ancho_explo1 * explo1_max_anim;
 
 //PROPIEDADES DE FUENTES
     graf_fuente1.imagen=imagen_fuente1;
@@ -1536,11 +1539,11 @@ void farma(tipo_arma *datos,int jugador)
             esp_desvio=0;//0.08
             esp_targetvel=0.07;
             esp_empujebala=0;
-            esp_radiobala=20;
+            esp_radiobala=10;
             esp_velporcuadro=1;//16
             esp_balavel=3;
             esp_variarvel=0.08;
-            esp_sacar=100;
+            esp_sacar=300;
             esp_rebote=3;
             esp_tiempo=70*2;
             esp_caida=gravedad;
@@ -1887,6 +1890,8 @@ void fbala(tipo_bala *datos)
         if (datos->tiempo<=0)
         {
             carcomer((int)datos->x,(int)datos->y,datos->radio);
+            crear_explosion(datos->x, datos->y);
+            explo_volar(datos);
             datos->vida=FALSE;
         }
     }
@@ -2034,22 +2039,66 @@ void fparticula(tipo_particula *datos)
         datos->vida=FALSE;
 }
 
+void crear_explosion(float x, float y)
+{
+    for (int j=0; j<max_explosiones; j++)
+    {
+        if (explosion[j].vida == FALSE)
+        {
+            explosion[j].vida = TRUE;
+            explosion[j].x = x;
+            explosion[j].y = y;
+            explosion[j].graph = 0;
+            explosion[j].c_animacion = 0;
+            break;
+        }
+    }
+}
+
 //////////////////////////////////////-> fExplosion <-//////////////////////////////////////////
 void fexplosion(tipo_explosion *datos)
 {
-
-
-     for (int j=0;j<max_jugadores;j++)//Repersentacion en pantalla
+    animar(&datos->graph, &datos->c_animacion, 0, explo1_max_anim, r_ani_explo);
+    if (datos->graph == (explo1_max_anim - 1))
+        datos->vida = FALSE;
+    for (int j=0; j<max_jugadores; j++)
     {
-            crtemp.x0=datos->graph*g_ancho_bala;
-            crtemp.x1=crtemp.x0+g_ancho_bala;
-            crtemp.y0=0;
-            crtemp.y1=g_alto_bala;
-
-            blt(datos->x+cregionpj[j].x0-scroll[j].x,datos->y+cregionpj[j].y0-scroll[j].y,&crtemp,&cregionpj[j],&graf_balas,&graf_back_buffer,0);
+        crtemp.x0 = datos->graph * g_ancho_explo1;
+        crtemp.x1 = crtemp.x0 + g_ancho_explo1;
+        crtemp.y0 = 0;
+        crtemp.y1 = g_alto_explo1;
+        int dest_x = datos->x + cregionpj[j].x0 - scroll[j].x - g_alto_explo1/2;
+        int dest_y = datos->y + cregionpj[j].y0 - scroll[j].y - g_alto_explo1/2;
+        blt(dest_x, dest_y, &crtemp, &cregionpj[j], &graf_explosiones, &graf_back_buffer, flag_n);
     }
     
 }
+
+/**
+ * Aplicar el efecto explosivo al gusano
+ */
+void explo_volar(tipo_bala* bala)
+{
+    for(int j=0; j<max_jugadores; j++)
+    {
+        float dx = gusano[j].gx - bala->x;
+        float dy = gusano[j].gy - bala->y;
+        float dist = sqrt(dx*dx + dy*dy);
+        dx /= dist;
+        dy /= dist;
+        if (dist < 5*bala->radio)
+        {
+            float afectacion = bala->sacar / dist;
+            gusano[j].velx += dx * afectacion/10.;
+            gusano[j].vely += dy * afectacion/10.;
+            if (dist <= 2*bala->radio || afectacion > bala->sacar)
+                gusano[j].energia -= bala->sacar;
+            else
+                gusano[j].energia -= afectacion;
+        }
+    }
+}
+
 //////////////////////////////////-> Crear_particulas <-////////////////////////////////////////
 void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely,byte color)
 {
