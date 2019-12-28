@@ -16,13 +16,16 @@
 #define alto_pantalla 200//200
 //#define ancho_pantalla_video 640
 //#define alto_pantalla_video 480
-#define alto_tablero 10//20
-#define alto_barra_energia 2
 #define separador_pantallas 2//Pares
 #define color_transparente 0
-#define color_barra_energia 75
 #define color_negro 16
 #define max_jugadores 2
+
+// Tablero
+#define alto_tablero 10
+#define alto_barra_energia 2
+#define color_barra_energia 75
+#define color_barra_ammo 67
 
 //BLT Flags
 #define flag_n 0
@@ -39,8 +42,8 @@
 #define colores_techo 164
 
 //Terreno
-#define ancho_terreno 504//504//159
-#define alto_terreno alto_pantalla//350//180
+#define ancho_terreno 159//504//159
+#define alto_terreno alto_pantalla*1//350//180
 #define gravedad 0.03//0.04//0.03
 #define piso 1//Piso que no se carcome
 #define colores_fondo 240//Comienzan los colores reservados para el fondo
@@ -117,6 +120,7 @@
 #define cargada 0
 #define disparando 1
 #define recargando 2
+#define espera_disparo 3
 //Clasificacion ARMAS
 #define a_shotgun 0
 #define a_ak47 1
@@ -129,7 +133,6 @@
 #define total_graf_balas 7
 
 //Explosiones
-
 #define max_explosiones 10
 #define g_ancho_explo1 25
 #define g_alto_explo1 25
@@ -205,6 +208,8 @@ typedef struct tagtipo_gusano{
 typedef struct tagtipo_arma{
     int gx,gy;
     int graph,c_animacion,tipo,ammo,reload,estado,ultimo_graph;
+    int c_anim_ammo;
+    float ammo_percent;
 }tipo_arma;
 
 typedef struct tagtipo_bala{
@@ -264,8 +269,8 @@ void fparticula(tipo_particula *datos);
 void fresto(tipo_resto *datos);
 void fsoga(int jugador);
 void draw_rectangle(int start_x, int start_y, int end_x, int end_y, byte color);
-void fbarra_energia();
-
+void fbarra_energia(int x, int y, tipo_gusano* datos);
+void fbarra_ammo(int x, int y, tipo_arma* datos);
 
 //Variables GLOBALES
     trgbtriple paleta1[256];
@@ -322,6 +327,8 @@ void fbarra_energia();
 
 SDL_Surface* screen;
 SDL_Surface* sdlBuffer;
+
+char cbuffer[10];
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -419,7 +426,7 @@ void wait(float seconds)
 ////////////////////////////////////////-> MAIN <-/////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-    printf("todo ok");
+    printf("todo ok\n");
     SDL_Init( SDL_INIT_EVERYTHING );
     screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, SDL_HWSURFACE | SDL_FULLSCREEN | SDL_DOUBLEBUF);
     sdlBuffer = SDL_CreateRGBSurfaceFrom(&back_buffer, ancho_pantalla, alto_pantalla, 8, ancho_pantalla, 0, 0, 0, 0);
@@ -429,7 +436,6 @@ int main(int argc, char *argv[])
     float t2,fps=0;
     int c=0, j=0, c_relativasX, c_relativasY, ccuadros=0;
     FILE *archivo;
-    char cfps[10];
 
     crpantalla.x0=0;
     crpantalla.y0=0;
@@ -672,8 +678,12 @@ int main(int argc, char *argv[])
             crtercam.y1=scroll[c].y+(cregionpj[c].y1-cregionpj[c].y0);
 
             bltfast(c_relativasX,c_relativasY,&crtercam,&graf_terreno,&graf_back_buffer);
-
-            fbarra_energia();
+            
+            // Borrar fondo del tablero
+            draw_rectangle(cregionpj[c].x0, cregionpj[c].y1, cregionpj[c].x1, cregionpj[c].y1+alto_tablero, color_negro);
+            tipo_arma* arma = &jugador[c].arma[jugador[c].selec];
+            fbarra_energia(cregionpj[c].x0, cregionpj[c].y1+3, &gusano[c]);
+            fbarra_ammo(cregionpj[c].x0, cregionpj[c].y1+5+alto_barra_energia, arma);
         }
         for (c=0;c<max_jugadores;c++)
         {
@@ -754,8 +764,8 @@ int main(int argc, char *argv[])
         }
 
         // Mostrar FPS
-        sprintf(cfps, "FPS:%0.f", fps);
-        escribir(0,alto_pantalla-alto_tablero-10-10,&crpantalla,&graf_fuente1,cfps);//170y//for  3 or 4 p 190y
+        snprintf(cbuffer, 10, "FPS:%0.f", fps);
+        escribir(0,alto_pantalla-alto_tablero-10-10,&crpantalla,&graf_fuente1,cbuffer);
 
         /*
         SDL_Rect destino;
@@ -1559,8 +1569,6 @@ void farma(tipo_arma *datos,int jugador)
     if (datos->estado==cargada && datos->ammo==0)
         datos->ammo=esp_ammo;//Primera ejecucion
 
-
-
     if (control[jugador][c_disparo] && datos->estado==cargada)
     {
         datos->estado=disparando;
@@ -1608,30 +1616,34 @@ void farma(tipo_arma *datos,int jugador)
         if (datos->graph>=datos->ultimo_graph+max_animacion_armas)
         {
             datos->graph-=max_animacion_armas;
-            datos->estado=recargando;
+            datos->estado=espera_disparo;
             datos->reload=-esp_rshot;
             datos->ammo--;
+            if (datos->ammo == 0)
+            {
+                datos->estado=recargando;
+                datos->reload=-esp_reload;
+            }
         }
 
     }
-/*    else
-    {
-        datos->ultimo_graph=datos->graph;
-    }*/
 
-
-    if (datos->estado==recargando)
+    if (datos->estado == espera_disparo)
     {
         datos->reload++;
-        if (datos->reload==0)
+        if (datos->reload == 0)
         {
-            if (datos->ammo==0)
-            {
-                datos->reload=-esp_reload;
-                datos->ammo=esp_ammo;
-            }
-            else
-                datos->estado=cargada;
+            datos->estado = cargada;
+        }
+    }
+
+    if (datos->estado == recargando)
+    {
+        datos->reload++;
+        if (datos->reload == 0)
+        {
+            datos->estado = cargada;
+            datos->ammo = esp_ammo;
         }
     }
 
@@ -1704,6 +1716,7 @@ void farma(tipo_arma *datos,int jugador)
 
     gusano[jugador].target_vel=esp_targetvel;
     datos->gy=gusano[jugador].gy-(g_alto_arma-g_alto_gusano)/2;
+    datos->ammo_percent = (float)datos->ammo / esp_ammo;
 }
 
 
@@ -1784,8 +1797,6 @@ void fresto(tipo_resto *datos)
 void fbala(tipo_bala *datos)
 {
     int c,j,n;
-
-
 
     datos->vely+=datos->caida;
     for(c=0;c<datos->velporcuadro;c++)
@@ -2356,27 +2367,36 @@ void generar_terreno()
 
 }
 
-void fbarra_energia()
+void fbarra_energia(int x, int y, tipo_gusano* datos)
+{
+    int ancho_barra = cregionpj[0].x1 - cregionpj[0].x0;
+    float pixeles_por_energia = (float)ancho_barra / energia_ini;
+    if (datos->energia > datos->c_barra_energia)
+    {
+        datos->c_barra_energia += roundf(1.0/pixeles_por_energia);
+    }
+    if (datos->energia < datos->c_barra_energia && datos->c_barra_energia > 0)
+    {
+        datos->c_barra_energia  -= roundf(1.0/pixeles_por_energia);
+    }
+    int llenado = roundf(datos->c_barra_energia * pixeles_por_energia);
+    if (llenado > 0) draw_rectangle(x, y, x + llenado, y + alto_barra_energia-1, color_barra_energia);
+}
+
+void fbarra_ammo(int x, int y, tipo_arma* datos)
 {
     int ancho_barra = cregionpj[0].x1 - cregionpj[0].x0 - 1;
-    float pixeles_por_energia = (float)ancho_barra / energia_ini;
-    for (int j=0; j<max_jugadores; j++)
+    int llenado = roundf(datos->ammo_percent * ancho_barra);
+    int mostrar = TRUE;
+    if (datos->estado == recargando)
     {
-        if (gusano[j].energia > gusano[j].c_barra_energia)
-        {
-            gusano[j].c_barra_energia += 1.0/pixeles_por_energia;
-        }
-        if (gusano[j].energia < gusano[j].c_barra_energia && gusano[j].c_barra_energia > 0)
-        {
-            gusano[j].c_barra_energia  -= 1.0/pixeles_por_energia;
-        }
-        int llenado = gusano[j].c_barra_energia * pixeles_por_energia;
-        int x = cregionpj[j].x0;
-        int y = cregionpj[j].y1;
-        draw_rectangle(x, y, cregionpj[j].x1, y+alto_tablero, color_negro);
-        y += 3;
-        if (llenado > 0) draw_rectangle(x, y, x + llenado, y + alto_barra_energia-1, color_barra_energia);
+        llenado = ancho_barra + datos->reload;
+        if (!(datos->reload % (FPS/8)))
+            datos->c_anim_ammo = !datos->c_anim_ammo;
+        mostrar = datos->c_anim_ammo;
     }
+    
+    if (mostrar && llenado > 0) draw_rectangle(x, y, x + llenado, y + alto_barra_energia-1, color_barra_ammo);
 }
 
 int imin(int a, int b)
