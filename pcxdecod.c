@@ -1,6 +1,5 @@
 #include <stdio.h>
-#include "lgame2.h"
-
+#include "pcxdecod.h"
 
 typedef struct tagtpcxheader
 {
@@ -29,7 +28,6 @@ typedef struct tagtpcxheader
 int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
 {
     tpcxheader header;
-    //trgbtriple paleta[256];
     FILE *arch1;
     word imagewidth, imageheight;
     dword totalbytesperline, subtotal, l;
@@ -53,7 +51,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
 
     if (header.Version==5)  /*Hay una paleta de 256 colores al final del archivo*/
     {
-    //Encontrar el fin del fichero y la posici�n de la paleta
+    //Encontrar el fin del fichero y la posicion de la paleta
     /*fseek(arch1,0,SEEK_SET);
     l=0;
     while (feof(arch1)==0)
@@ -76,7 +74,7 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
         return(1);
 
     }
-    else    /*Error: Versi�n no reconocida*/
+    else    /*Error: Version no reconocida*/
         return(2);
 
     /*Nos posicionamos al principio de los datos de imagen*/
@@ -84,56 +82,56 @@ int loadpcx(char *nomarch, byte *imgbuf, trgbtriple *palbuf)
     y=0;
     while (y<imageheight)
     {
-    x=0; subtotal=0;
-    while (x<imagewidth)
-    {
-        /*Leer el primer byte*/
-        fread(&byte1,1,1,arch1);
-
-        if (0xC0 == (byte1 & 0xC0))     /*Hay compresi�n run-length*/
+        x=0; subtotal=0;
+        while (x<imagewidth)
         {
-            /*obtengamos la cantidad de pixeles*/
-            c=(byte1 & 0x3F);
-            /*leamos el byte de color*/
-            fread(&byte2,1,1,arch1);
+            /*Leer el primer byte*/
+            fread(&byte1,1,1,arch1);
 
-            /*reproduzcamos c pixeles*/
-            for (i=0; i<c; i++)
+            if (0xC0 == (byte1 & 0xC0))     /*Hay compresi�n run-length*/
             {
-                if (x==imagewidth)
-                    break;
+                /*obtengamos la cantidad de pixeles*/
+                c=(byte1 & 0x3F);
+                /*leamos el byte de color*/
+                fread(&byte2,1,1,arch1);
 
-                imgbuf[y*imagewidth+x]=byte2;
-                /*imgbuf[(y*imagewidth+x)*4]=paleta[byte2].b;
-                imgbuf[(y*imagewidth+x)*4+1]=paleta[byte2].g;
-                imgbuf[(y*imagewidth+x)*4+2]=paleta[byte2].r;
+                /*reproduzcamos c pixeles*/
+                for (i=0; i<c; i++)
+                {
+                    if (x==imagewidth)
+                        break;
+
+                    imgbuf[y*imagewidth+x]=byte2;
+                    /*imgbuf[(y*imagewidth+x)*4]=paleta[byte2].b;
+                    imgbuf[(y*imagewidth+x)*4+1]=paleta[byte2].g;
+                    imgbuf[(y*imagewidth+x)*4+2]=paleta[byte2].r;
+                    imgbuf[(y*imagewidth+x)*4+3]=0;*/
+
+                    subtotal++;
+                    x++;
+                }
+            }
+            else    /*No hay compresi�n*/
+            {
+                imgbuf[y*imagewidth+x]=byte1;
+                /*imgbuf[(y*imagewidth+x)*4]=paleta[byte1].b;
+                imgbuf[(y*imagewidth+x)*4+1]=paleta[byte1].g;
+                imgbuf[(y*imagewidth+x)*4+2]=paleta[byte1].r;
                 imgbuf[(y*imagewidth+x)*4+3]=0;*/
 
                 subtotal++;
                 x++;
             }
         }
-        else    /*No hay compresi�n*/
+        //Leer lo que falte (basura), ya que cada linea tiene siempre un numero par de bytes
+        while (subtotal<totalbytesperline)
         {
-            imgbuf[y*imagewidth+x]=byte1;
-            /*imgbuf[(y*imagewidth+x)*4]=paleta[byte1].b;
-            imgbuf[(y*imagewidth+x)*4+1]=paleta[byte1].g;
-            imgbuf[(y*imagewidth+x)*4+2]=paleta[byte1].r;
-            imgbuf[(y*imagewidth+x)*4+3]=0;*/
-
+            fread(&byte1,1,1,arch1);
             subtotal++;
-            x++;
         }
-    }
-    //Leer lo que falte (basura), ya que cada linea tiene siempre un numero par de bytes
-    while (subtotal<totalbytesperline)
-    {
-        fread(&byte1,1,1,arch1);
-        subtotal++;
-    }
 
-    //Proxima linea
-    y++;
+        //Proxima linea
+        y++;
     }
 
     /*Todo listo*/

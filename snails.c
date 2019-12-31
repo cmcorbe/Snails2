@@ -4,20 +4,21 @@
 #include <string.h>
 #include <math.h>
 #include <malloc.h>
+
 #include <SDL/SDL.h>
-#include "lgame2.h"
+
 #include "fps_limiter.h"
+#include "keyconfig.h"
+#include "graficos.h"
+#include "pcxdecod.h"
+#include "snails.h"
 
 
 //CONSTANTES
-#define pi 3.14159264
 #define FPS 60
-#define ancho_pantalla 320//320
-#define alto_pantalla 200//200
 //#define ancho_pantalla_video 640
 //#define alto_pantalla_video 480
 #define separador_pantallas 2//Pares
-#define color_transparente 0
 #define color_negro 16
 #define max_jugadores 2
 
@@ -26,12 +27,6 @@
 #define alto_barra_energia 2
 #define color_barra_energia 75
 #define color_barra_ammo 67
-
-//BLT Flags
-#define flag_n 0
-#define flag_x 1
-#define flag_y 2
-#define flag_xy 3
 
 //Generador de Terreno
 #define ancho_bloque_ter 256
@@ -149,47 +144,6 @@
 //Keyboard Reference
 #define key_esc 1
 
-//Controles
-#define max_controles 7
-#define c_arriba 0
-#define c_abajo 1
-#define c_izquierda 2
-#define c_derecha 3
-#define c_disparo 4
-#define c_salto 5
-#define c_cambio 6
-
-
-typedef union tag_u_dword
-{
-    byte b;
-    word w;
-    dword dw;
-} _u_dword;
-
-typedef union tag_u_word
-{
-    byte b;
-    word w;
-} _u_word;
-
-typedef struct tagtipo_imagen
-{
-    byte *imagen;
-    int ancho;
-    int alto;
-} tipo_imagen;
-
-typedef struct tagtipo_clipregion
-{
-    int x0,y0,x1,y1;
-} tipo_clipregion;
-
-typedef struct tagtipo_sizefuente
-{
-    short x0,y0,x1,y1;
-} tipo_sizefuente;
-
 typedef struct tagtipo_scroll{
     int x,y;
 }tipo_scroll;
@@ -248,7 +202,6 @@ typedef struct tagtipo_explosion{
 
 //PROTOTIPO de Funciones
 
-void configurar_teclas();
 void actualizar_controles();
 //void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely);
 void crear_particulas(int tipo,int cantidad,float x,float y,float velx,float vely,byte color);
@@ -256,9 +209,6 @@ float random_range(float min, float max);
 void advance(float *angle,float *vel,float *x1,float *y1);
 void generar_terreno();
 void carcomer(int desx,int desy,int radio);
-void escribir(int desx,int desy,tipo_clipregion *regdestino,tipo_imagen *origen,char *texto);
-void blt(int desx,int desy,tipo_clipregion *regorigen,tipo_clipregion *regdestino,tipo_imagen *origen,tipo_imagen *destino,int flags);
-void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,tipo_imagen *destino);
 void farma(tipo_arma *datos,int jugador);
 void fbala(tipo_bala *datos);
 void crear_explosion(float x, float y);
@@ -279,7 +229,6 @@ void fbarra_ammo(int x, int y, tipo_arma* datos);
 
     tipo_scroll scroll[max_jugadores];
     tipo_camara camara[max_jugadores];
-    tipo_sizefuente sizetextos[256];
 
     tipo_gusano gusano[max_jugadores];
     //tipo_jugador jugador[max_jugadores];
@@ -303,14 +252,12 @@ void fbarra_ammo(int x, int y, tipo_arma* datos);
         byte imagen_fondo[ancho_terreno*alto_terreno];
         byte imagen_gusano[max_jugadores][g_ancho_gusano*(max_animacion+1+2)*g_alto_gusano];
         byte imagen_armas[total_armas*g_alto_arma*g_ancho_arma*max_animacion_armas*max_angulos_armas];
-        byte imagen_fuente1[715*20];
         byte imagen_balas[g_ancho_bala*g_alto_bala*total_graf_balas];
         byte imagen_explosiones[g_ancho_explo1 * g_alto_explo1 * explo1_max_anim];
         byte imagen_temppal[1];
 
 
         tipo_imagen graf_back_buffer;
-        tipo_imagen graf_fuente1;
         tipo_imagen graf_gusano[max_jugadores];
         tipo_imagen graf_terreno;
         tipo_imagen graf_fondo;
@@ -329,76 +276,6 @@ SDL_Surface* screen;
 SDL_Surface* sdlBuffer;
 
 char cbuffer[10];
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-void configurar_teclas()
-{
-    int contj,contc,ccapturado,c;
-    char * nom_controles[max_controles];
-    FILE *archivo;
-
-    nom_controles[c_arriba]="UP";
-    nom_controles[c_abajo]="DOWN";
-    nom_controles[c_izquierda]="LEFT";
-    nom_controles[c_derecha]="RIGHT";
-    nom_controles[c_disparo]="FIRE";
-    nom_controles[c_salto]="JUMP";
-    nom_controles[c_cambio]="CHANGE";
-
-
-    //_setvideomode(_DEFAULTMODE);
-    CapturarTeclado(keyboard);
-
-    /*while (1)
-    {
-        //sleep(1);
-        _settextposition(1,1);
-        for(c=0; c<128; c++)
-            printf("%X",keyboard[c]);
-            printf("\n");
-    }*/
-
-    for (contj=0;contj<max_jugadores;contj++)
-    {
-        /*_setbkcolor(_BLACK);
-        _settextcolor(7);
-        _clearscreen(_GCLEARSCREEN);
-        _settextcolor(15);
-        _setbkcolor(_BLUE);
-        _outtext(" Keyboard Configuration Program  V1.0  Copyright 2002 ");*/
-        printf("\n\n");
-
-        printf("PLAYER    %i :\n\n",contj+1);
-
-        for (contc=0;contc<max_controles;contc++)
-        {
-            printf("%s %s\n","PRESS KEY",nom_controles[contc]);
-            ccapturado=-1;
-            while (ccapturado==-1)
-            {
-                SDL_PumpEvents();
-                for (c=0;c<128;c++)
-                {
-                    if(keyboard[c])
-                        ccapturado=c;
-                }
-            }
-            conf_control[contj][contc]=ccapturado;
-
-            printf("...........READY\n\n");
-            while (keyboard[ccapturado])
-                SDL_PumpEvents();
-        }
-    }
-    LiberarTeclado();
-    archivo=fopen("keys.cfg","wb");
-    fwrite(&conf_control,sizeof(conf_control),1,archivo);
-    fclose(archivo);
-}
 
 void actualizar_controles()
 {
@@ -426,10 +303,14 @@ void wait(float seconds)
 ////////////////////////////////////////-> MAIN <-/////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-    printf("todo ok\n");
-    SDL_Init( SDL_INIT_EVERYTHING );
-    screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, SDL_HWSURFACE | SDL_FULLSCREEN | SDL_DOUBLEBUF);
-    sdlBuffer = SDL_CreateRGBSurfaceFrom(&back_buffer, ancho_pantalla, alto_pantalla, 8, ancho_pantalla, 0, 0, 0, 0);
+    int ret;
+    ret = SDL_Init(SDL_INIT_EVERYTHING);
+    if (ret == 0) {
+        printf("SDL initialized OK.\n");
+    } else {
+        printf("Error initializing SDL\n");
+    }
+    
     keyboard = SDL_GetKeyState(NULL);
 
     clock_t tiempo;
@@ -520,11 +401,6 @@ int main(int argc, char *argv[])
     graf_explosiones.alto = g_alto_explo1;
     graf_explosiones.ancho = g_ancho_explo1 * explo1_max_anim;
 
-//PROPIEDADES DE FUENTES
-    graf_fuente1.imagen=imagen_fuente1;
-    graf_fuente1.ancho=747;
-    graf_fuente1.alto=17;
-
 //CARGA DE ARCHIVOS
     for (c=0;c<max_jugadores;c++)
     {
@@ -538,13 +414,17 @@ int main(int argc, char *argv[])
         fclose(archivo);
     }
     else
-        configurar_teclas();
+    {
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        configurar_teclas(max_jugadores, max_controles);
+        SDL_InitSubSystem(SDL_INIT_VIDEO);
+    }
 
-    archivo=fopen("fuente1.inf","rb");
-    fread(&sizetextos,sizeof(sizetextos[0]),256,archivo);
-    fclose(archivo);
+    // Init graphics video screen
+    screen = SDL_SetVideoMode(ancho_pantalla, alto_pantalla, 8, SDL_HWSURFACE | SDL_FULLSCREEN | SDL_DOUBLEBUF);
+    sdlBuffer = SDL_CreateRGBSurfaceFrom(&back_buffer, ancho_pantalla, alto_pantalla, 8, ancho_pantalla, 0, 0, 0, 0);
 
-    loadpcx("fuente1.pcx",imagen_fuente1,paleta1);
+    cargar_fuente();
 
     for (c=0;c<max_jugadores;c++)
         loadpcx("caracol.pcx",imagen_gusano[c],paleta1);
@@ -611,8 +491,6 @@ int main(int argc, char *argv[])
         gusano[c].gy=gusano[c].y-g_alto_gusano/2-1;
 
     }
-
-    CapturarTeclado(keyboard);
 
     fps_set(FPS);
     tiempo=clock();
@@ -765,7 +643,7 @@ int main(int argc, char *argv[])
 
         // Mostrar FPS
         snprintf(cbuffer, 10, "FPS:%0.f", fps);
-        escribir(0,alto_pantalla-alto_tablero-10-10,&crpantalla,&graf_fuente1,cbuffer);
+        escribir(0, alto_pantalla-alto_tablero-10-10, cbuffer);
 
         /*
         SDL_Rect destino;
@@ -791,207 +669,10 @@ int main(int argc, char *argv[])
             ccuadros=0;
             tiempo=clock();
         }
-
-
-//Pantalla actualizada
+    //Pantalla actualizada
     }
-
-    LiberarTeclado();
-
-    //_setvideomode(_DEFAULTMODE);
     SDL_Quit();
-
-    //tiempo=clock()/CLOCKS_PER_SEC;
-    //printf("%f \n",fps);
-
-}//FIN DEL PROGRAMA
-
-
-/////////////////////////////////////////-> Blt <-/////////////////////////////////////////////
-void blt(int desx,int desy,tipo_clipregion *regorigen,tipo_clipregion *regdestino,tipo_imagen *origen,tipo_imagen *destino,int flags)
-{
-    int ox,oy,dx,dy,oyy,dyy;
-    dword i,j;
-    byte *oimagen, *dimagen;
-
-    oimagen=origen->imagen;
-    dimagen=destino->imagen;
-
-    dx=desx;
-    dy=desy;
-
-    switch (flags)
-    {
-        case flag_n:
-        {
-            for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-            {
-                dyy=dy*destino->ancho;
-                oyy=oy*origen->ancho;
-                for (ox=regorigen->x0; ox<regorigen->x1; ox++)
-                {
-                    if (dx>=regdestino->x0 && dx<regdestino->x1)
-                        if (dy>=regdestino->y0 && dy<regdestino->y1)
-                        {
-                            i=ox+oyy;
-                            if (oimagen[i]!=color_transparente)
-                            {
-                                j=dx+dyy;
-                                dimagen[j]=oimagen[i];
-                            }
-                        }
-                    dx++;
-                }
-                dy++;
-                dx=desx;
-            }
-            break;
-        }
-        case flag_x:
-        {
-            for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-            {
-                dyy=dy*destino->ancho;
-                oyy=oy*origen->ancho;
-                for (ox=regorigen->x1-1;ox>=regorigen->x0;ox--)
-                {
-                    if (dx>=regdestino->x0 && dx<regdestino->x1)
-                        if (dy>=regdestino->y0 && dy<regdestino->y1)
-                        {
-                            i=ox+oyy;
-                            if (oimagen[i]!=color_transparente)
-                            {
-                                j=dx+dyy;
-                                dimagen[j]=oimagen[i];
-                            }
-                        }
-                    dx++;
-                }
-                dy++;
-                dx=desx;
-            }
-            break;
-        }
-        case flag_y:
-        {
-            for (oy=regorigen->y1-1;oy>=regorigen->y0;oy--)
-            {
-                dyy=dy*destino->ancho;
-                oyy=oy*origen->ancho;
-                for (ox=regorigen->x0; ox<regorigen->x1; ox++)
-                {
-                    if (dx>=regdestino->x0 && dx<regdestino->x1)
-                        if (dy>=regdestino->y0 && dy<regdestino->y1)
-                        {
-                            i=ox+oyy;
-                            if (oimagen[i]!=color_transparente)
-                            {
-                                j=dx+dyy;
-                                dimagen[j]=oimagen[i];
-                            }
-                        }
-                    dx++;
-                }
-                dy++;
-                dx=desx;
-            }
-            break;
-        }
-        case flag_xy:
-        {
-            for (oy=regorigen->y1-1;oy>=regorigen->y0;oy--)
-            {
-                dyy=dy*destino->ancho;
-                oyy=oy*origen->ancho;
-                for (ox=regorigen->x1-1; ox>=regorigen->x0; ox--)
-                {
-                    if (dx>=regdestino->x0 && dx<regdestino->x1)
-                        if (dy>=regdestino->y0 && dy<regdestino->y1)
-                        {
-                            i=ox+oyy;
-                            if (oimagen[i]!=color_transparente)
-                            {
-                                j=dx+dyy;
-                                dimagen[j]=oimagen[i];
-                            }
-                        }
-                    dx++;
-                }
-                dy++;
-                dx=desx;
-            }
-            break;
-        }
-    }
-}
-
-
-///////////////////////////////////////-> BltFast <-////////////////////////////////////////////
-void bltfast(int desx,int desy,tipo_clipregion *regorigen,tipo_imagen *origen,tipo_imagen *destino)
-{
-    int oy,dx,dy;
-    dword i,dwancho;
-    _u_dword *dwoimagen,*dwdimagen;
-    _u_word *woimagen,*wdimagen;
-    byte par;
-
-    dx=desx;
-    dy=desy;
-    dwancho=(regorigen->x1-regorigen->x0)/4;
-    par=((regorigen->x1-regorigen->x0) % 4);
-
-    if (par==0)
-        for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-        {
-            dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
-            dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-
-            for (i=0; i<dwancho; i++)
-                dwdimagen[i].dw=dwoimagen[i].dw;
-            dy++;
-        }
-    else
-        if (par==2)
-            for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-            {
-                dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
-                dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-
-                for (i=0; i<dwancho; i++)
-                    dwdimagen[i].dw=dwoimagen[i].dw;
-                dwdimagen[i].w=dwoimagen[i].w;
-                dy++;
-            }
-        else
-            if (par==1)
-                for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-                {
-                    dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
-                    dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-
-                    for (i=0; i<dwancho; i++)
-                        dwdimagen[i].dw=dwoimagen[i].dw;
-                    dwdimagen[i].b=dwoimagen[i].b;
-                    dy++;
-                }
-            else
-                if (par==3)
-                    for (oy=regorigen->y0;oy<regorigen->y1;oy++)
-                    {
-                        dwoimagen=(_u_dword*) &origen->imagen[oy*origen->ancho+regorigen->x0];
-                        dwdimagen=(_u_dword*) &destino->imagen[dy*destino->ancho+desx];
-
-                        for (i=0; i<dwancho; i++)
-                            dwdimagen[i].dw=dwoimagen[i].dw;
-
-                        wdimagen=(_u_word*) &dwdimagen[i];
-                        woimagen=(_u_word*) &dwoimagen[i];
-                        wdimagen[0].w=woimagen[0].w;
-                        wdimagen[1].b=woimagen[1].b;
-                        dy++;
-                    }
-}
-
+} //FIN DEL PROGRAMA
 
 float random_range(float min,float max)
 {
@@ -1047,37 +728,6 @@ void animar(int *graph,int *c_animacion,int comienzo,int fin,int retardo)
 
     }
 }
-
-
-
-//////////////////////////////////////-> Escribir <-///////////////////////////////////////////
-void escribir(int desx,int desy,tipo_clipregion *regdestino,tipo_imagen *origen,char *texto)
-{
-    int c=0,ea;
-    tipo_imagen graf_backbuffer;
-    tipo_clipregion crfuente1;
-
-    graf_backbuffer.imagen=back_buffer;
-    graf_backbuffer.ancho=ancho_pantalla;
-    graf_backbuffer.alto=alto_pantalla;
-
-    ea=sizetextos['A'].y0;
-
-    while (texto[c] != 0)
-    {
-        crfuente1.x0=sizetextos[texto[c]].x0/*+1*/;
-        crfuente1.y0=sizetextos[texto[c]].y0;
-        crfuente1.x1=sizetextos[texto[c]].x1+crfuente1.x0;
-        crfuente1.y1=sizetextos[texto[c]].y1+crfuente1.y0;
-
-
-        blt(desx,desy+crfuente1.y0-ea,&crfuente1,&crpantalla,&graf_fuente1,&graf_backbuffer,flag_n);
-
-        desx+=sizetextos[texto[c]].x1;
-        c++;
-    }
-}
-
 
 //////////////////////////////////////-> fGusano <-////////////////////////////////////////////
 void fgusano(tipo_gusano *datos)
